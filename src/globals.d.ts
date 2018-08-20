@@ -6,3 +6,10 @@ declare let MAX_GAME_HEIGHT: number;
 declare let SCALE_MODE: string;
 declare let GOOGLE_WEB_FONTS: string[];
 declare let SOUND_EXTENSIONS_PREFERENCE: string[];
+
+declare namespace Phaser {
+  interface StateManager {
+    originX: number;
+    originY: number;
+  }
+}

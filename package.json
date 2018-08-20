@@ -1,6 +1,6 @@
 {
-  "name": "phaser-npm-webpack-typescript-starter-project",
-  "productName": "phaser-npm-webpack-typescript-starter-project",
+  "name": "chess-ts",
+  "productName": "chess-ts",
   "version": "1.8.7",
   "main": "electron-main.js",
   "scripts": {
@@ -24,7 +24,7 @@
     "type": "git",
     "url": "git+https://github.com/rroylance/phaser-npm-webpack-typescript-starter-project.git"
   },
-  "author": "Richard Roylance <https://github.com/rroylance>",
+  "author": "Sebastian Luberriaga <https://github.com/rroylance>",
   "bugs": {
     "url": "https://github.com/rroylance/phaser-npm-webpack-typescript-starter-project/issues"
   },
@@ -55,5 +55,10 @@
     "webpack-dev-server": "2.11.1",
     "webpack-synchronizable-shell-plugin": "0.0.6",
     "xml2js": "0.4.19"
+  },
+  "prettier": {
+    "printWidth": 90,
+    "semi": true,
+    "singleQuote": true
   }
 }
