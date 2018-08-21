@@ -19,7 +19,8 @@ export default class Boot extends Phaser.State {
     // Uncomment the following to disable multitouch
     // this.input.maxPointers = 1;
 
-    this.game.world.setBounds(0, 0, 2000, 2000);
+    this.game.world.setBounds(0, 0, 3000, 2000);
+    this.game.camera.setBoundsToWorld();
     this.game.scale.scaleMode = Phaser.ScaleManager[SCALE_MODE];
 
     if (SCALE_MODE === 'USER_SCALE') {

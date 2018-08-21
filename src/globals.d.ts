@@ -9,7 +9,7 @@ declare let SOUND_EXTENSIONS_PREFERENCE: string[];
 
 declare namespace Phaser {
   interface StateManager {
-    originX: number;
-    originY: number;
+    offsetX: number;
+    offsetY: number;
   }
 }

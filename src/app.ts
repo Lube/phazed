@@ -11,6 +11,9 @@ import Game from './states/game';
 import * as Utils from './utils/utils';
 import * as Assets from './assets';
 
+let offsetX: number;
+let offsetY: number;
+
 class App extends Phaser.Game {
   constructor(config: Phaser.IGameConfig) {
     super(config);
@@ -21,8 +24,8 @@ class App extends Phaser.Game {
     this.state.add('game', Game);
 
     this.state.start('boot');
-    this.state.originX = 0;
-    this.state.originY = 0;
+    this.state.offsetX = offsetX;
+    this.state.offsetY = offsetY;
   }
 }
 
@@ -35,6 +38,9 @@ function startApp(): void {
       gameWidth,
       gameHeight
     );
+
+    offsetX = screenMetrics.offsetX;
+    offsetY = screenMetrics.offsetY;
 
     gameWidth = screenMetrics.gameWidth;
     gameHeight = screenMetrics.gameHeight;
