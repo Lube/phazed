@@ -8,21 +8,25 @@ export default class Game extends Phaser.State {
   private backgroundTemplateSprite: Phaser.Sprite = null;
   private cursors: Phaser.CursorKeys = null;
   private mapSprites: Phaser.Sprite[][] = [];
+  private selectedSprite: Phaser.Sprite = null;
+  private oldSelectedSpriteTexture: PIXI.Texture = null;
   private map: number[][] = [
     [1, 1, 1, 1, 1, 1, 1, 2],
-    [1, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 1, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 1],
+    [1, 2, 0, 0, 0, 0, 0, 1],
+    [1, 0, 2, 0, 0, 0, 0, 1],
+    [1, 0, 0, 2, 0, 0, 0, 1],
+    [1, 0, 0, 0, 2, 0, 0, 1],
+    [1, 0, 0, 0, 0, 2, 0, 1],
+    [1, 0, 0, 0, 0, 0, 2, 1],
     [2, 1, 1, 1, 1, 1, 1, 1]
   ];
+  private updateQueue: Function[] = [];
 
   public create(): void {
     this.drawBackground();
     this.drawMap();
     this.drawBorders();
+
     this.game.camera.x = this.game.world.centerX;
     this.game.camera.y = this.game.world.centerY;
     this.cursors = this.game.input.keyboard.createCursorKeys();
@@ -68,6 +72,8 @@ export default class Game extends Phaser.State {
   update() {
     this.checkMouseBorder();
     this.checkArrows();
+    this.updateQueue.forEach(fn => fn());
+    this.updateQueue = [];
   }
 
   render() {
@@ -107,25 +113,50 @@ export default class Game extends Phaser.State {
     for (const [rowIndex, row] of this.map.entries()) {
       this.mapSprites.push([]);
       for (const [columnIndex, column] of row.entries()) {
-        const x = (columnIndex * TILE_WIDTH) / 2;
-        const y = rowIndex * TILE_HEIGHT;
         const tileType = this.map[rowIndex][columnIndex];
         this.mapSprites[rowIndex][columnIndex] = this.placeTile(
-          new Phaser.Point(x, y),
+          rowIndex,
+          columnIndex,
           tileType
+        );
+        this.mapSprites[rowIndex][columnIndex].inputEnabled = true;
+        this.mapSprites[rowIndex][columnIndex].events.onInputDown.add(
+          this.handleTileClick(rowIndex, columnIndex)
         );
       }
     }
   }
 
-  placeTile(target: Phaser.Point, tileType: number): Phaser.Sprite {
+  handleTileClick(xCoord: number, yCoord: number) {
+    return (): void => {
+      this.updateQueue.push(() => {
+        if (this.selectedSprite) {
+          this.selectedSprite.loadTexture(this.oldSelectedSpriteTexture);
+        }
+
+        if (this.selectedSprite === this.mapSprites[xCoord][yCoord]) {
+          this.selectedSprite = null;
+        } else {
+          this.selectedSprite = this.mapSprites[xCoord][yCoord];
+          this.oldSelectedSpriteTexture = this.selectedSprite.texture;
+          this.selectedSprite.loadTexture(Assets.Images.ImagesTilesTile002.getName());
+        }
+      });
+    };
+  }
+
+  placeTile(x: number, y: number, tileType: number): Phaser.Sprite {
     const tileTypeToAsset = [
       Assets.Images.ImagesTilesTile001Piso.getName(),
       Assets.Images.ImagesTilesTile001.getName(),
       Assets.Images.ImagesTilesTile002.getName()
     ];
 
-    const { x: isoX, y: isoY } = GeometricUtils.cartesianToIsometric(target);
+    const target = new Phaser.Point((x * TILE_WIDTH) / 2, y * TILE_HEIGHT);
+
+    const z = x === y && x !== 0 && x !== 7 ? TILE_HEIGHT : 0;
+
+    const { x: isoX, y: isoY } = GeometricUtils.cartesianToIsometric(target, -z);
 
     const tile = this.game.add.sprite(
       this.game.world.centerX +
