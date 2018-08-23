@@ -1,24 +1,73 @@
 import * as Assets from '../assets';
 import GeometricUtils from '../utils/geometricUtils';
 
+// [
+//   [1,2,3], 00 => 20, 01 => 10, => 02 => 00
+//   [1,2,3],
+//   [1,2,3]
+// ]
+
+// [
+//   [1,1,1],
+//   [2,2,2],
+//   [3,2,3]
+// ]
+const flipMatrix = matrix =>
+  matrix[0].map((column, index) => matrix.map(row => row[index]).reverse());
+
+const rotate = matrix => flipMatrix(matrix.slice());
+
 const TILE_HEIGHT = 64;
 const TILE_WIDTH = 128;
 
 export default class Game extends Phaser.State {
   private backgroundTemplateSprite: Phaser.Sprite = null;
   private cursors: Phaser.CursorKeys = null;
-  private mapSprites: Phaser.Sprite[][] = [];
+  private mapSprites: Phaser.Sprite[][][] = [];
   private selectedSprite: Phaser.Sprite = null;
   private oldSelectedSpriteTexture: PIXI.Texture = null;
-  private map: number[][] = [
-    [1, 1, 1, 1, 1, 1, 1, 2],
-    [1, 2, 0, 0, 0, 0, 0, 1],
-    [1, 0, 2, 0, 0, 0, 0, 1],
-    [1, 0, 0, 2, 0, 0, 0, 1],
-    [1, 0, 0, 0, 2, 0, 0, 1],
-    [1, 0, 0, 0, 0, 2, 0, 1],
-    [1, 0, 0, 0, 0, 0, 2, 1],
-    [2, 1, 1, 1, 1, 1, 1, 1]
+  private orientation: number = 0;
+  private map: number[][][] = [
+    [
+      [1, 1, 1, 1, 1, 1, 1, 2],
+      [1, 0, 0, 0, 0, 0, 2, 1],
+      [1, 0, 0, 0, 0, 2, 0, 1],
+      [1, 0, 0, 0, 2, 0, 0, 1],
+      [1, 0, 0, 2, 0, 0, 0, 1],
+      [1, 0, 2, 0, 0, 0, 0, 1],
+      [1, 2, 0, 0, 0, 0, 0, 1],
+      [2, 1, 1, 1, 1, 1, 1, 1]
+    ],
+    [
+      [-1, -1, -1, -1, -1, -1, -1, -1],
+      [-1, -1, -1, -1, -1, -1, 2, -1],
+      [-1, -1, -1, -1, -1, 2, -1, -1],
+      [-1, -1, -1, -1, 2, -1, -1, -1],
+      [-1, -1, -1, 2, -1, -1, -1, -1],
+      [-1, -1, 2, -1, -1, -1, -1, -1],
+      [-1, 2, -1, -1, -1, -1, -1, -1],
+      [-1, -1, -1, -1, -1, -1, -1, -1]
+    ],
+    [
+      [-1, -1, -1, -1, -1, -1, -1, -1],
+      [-1, -1, -1, -1, -1, -1, -1, -1],
+      [-1, -1, -1, -1, -1, 2, -1, -1],
+      [-1, -1, -1, -1, 2, -1, -1, -1],
+      [-1, -1, -1, 2, -1, -1, -1, -1],
+      [-1, -1, 2, -1, -1, -1, -1, -1],
+      [-1, -1, -1, -1, -1, -1, -1, -1],
+      [-1, -1, -1, -1, -1, -1, -1, -1]
+    ],
+    [
+      [2, -1, -1, -1, -1, -1, -1, -1],
+      [-1, 2, -1, -1, -1, -1, -1, -1],
+      [-1, -1, 2, -1, -1, -1, -1, -1],
+      [-1, -1, -1, 2, 2, -1, -1, -1],
+      [-1, -1, -1, 2, -1, -1, -1, -1],
+      [-1, -1, -1, -1, -1, -1, -1, -1],
+      [-1, -1, -1, -1, -1, -1, -1, -1],
+      [-1, -1, -1, -1, -1, -1, -1, 2]
+    ]
   ];
   private updateQueue: Function[] = [];
 
@@ -57,15 +106,19 @@ export default class Game extends Phaser.State {
 
   checkArrows() {
     if (this.cursors.up.isDown) {
-      this.game.camera.y -= 4;
+      this.orientation = 0;
+      this.drawMap();
     } else if (this.cursors.down.isDown) {
-      this.game.camera.y += 4;
+      this.orientation = 2;
+      this.drawMap();
     }
 
     if (this.cursors.left.isDown) {
-      this.game.camera.x -= 4;
+      this.orientation = 1;
+      this.drawMap();
     } else if (this.cursors.right.isDown) {
-      this.game.camera.x += 4;
+      this.orientation = 3;
+      this.drawMap();
     }
   }
 
@@ -110,34 +163,42 @@ export default class Game extends Phaser.State {
   }
 
   drawMap() {
-    for (const [rowIndex, row] of this.map.entries()) {
+    this.mapSprites.forEach(layer =>
+      layer.forEach(row => row.forEach(sprite => sprite && sprite.destroy()))
+    );
+    this.mapSprites = [];
+    for (const [heightIndex, grid] of this.map.entries()) {
       this.mapSprites.push([]);
-      for (const [columnIndex, column] of row.entries()) {
-        const tileType = this.map[rowIndex][columnIndex];
-        this.mapSprites[rowIndex][columnIndex] = this.placeTile(
-          rowIndex,
-          columnIndex,
-          tileType
-        );
-        this.mapSprites[rowIndex][columnIndex].inputEnabled = true;
-        this.mapSprites[rowIndex][columnIndex].events.onInputDown.add(
-          this.handleTileClick(rowIndex, columnIndex)
-        );
+      let transposed = grid;
+      for (let index = 0; index < this.orientation; index++) {
+        transposed = rotate(transposed);
+      }
+      for (const [rowIndex, row] of transposed.entries()) {
+        this.mapSprites[heightIndex].push([]);
+        for (const [columnIndex, column] of row.entries()) {
+          const tileType = transposed[rowIndex][columnIndex];
+          this.mapSprites[heightIndex][rowIndex][columnIndex] = this.placeTile(
+            rowIndex,
+            columnIndex,
+            heightIndex,
+            tileType
+          );
+        }
       }
     }
   }
 
-  handleTileClick(xCoord: number, yCoord: number) {
+  handleTileClick(xCoord: number, yCoord: number, zCoord: number) {
     return (): void => {
       this.updateQueue.push(() => {
         if (this.selectedSprite) {
           this.selectedSprite.loadTexture(this.oldSelectedSpriteTexture);
         }
 
-        if (this.selectedSprite === this.mapSprites[xCoord][yCoord]) {
+        if (this.selectedSprite === this.mapSprites[xCoord][yCoord][zCoord]) {
           this.selectedSprite = null;
         } else {
-          this.selectedSprite = this.mapSprites[xCoord][yCoord];
+          this.selectedSprite = this.mapSprites[xCoord][yCoord][zCoord];
           this.oldSelectedSpriteTexture = this.selectedSprite.texture;
           this.selectedSprite.loadTexture(Assets.Images.ImagesTilesTile002.getName());
         }
@@ -145,40 +206,38 @@ export default class Game extends Phaser.State {
     };
   }
 
-  placeTile(x: number, y: number, tileType: number): Phaser.Sprite {
+  placeTile(x: number, y: number, z: number, tileType: number): Phaser.Sprite | null {
     const tileTypeToAsset = [
       Assets.Images.ImagesTilesTile001Piso.getName(),
       Assets.Images.ImagesTilesTile001.getName(),
       Assets.Images.ImagesTilesTile002.getName()
     ];
 
-    const target = new Phaser.Point((x * TILE_WIDTH) / 2, y * TILE_HEIGHT);
+    if (tileType !== -1) {
+      const target = new Phaser.Point((x * TILE_WIDTH) / 2, y * TILE_HEIGHT);
 
-    const z = x === y && x !== 0 && x !== 7 ? TILE_HEIGHT : 0;
+      const { x: isoX, y: isoY } = GeometricUtils.cartesianToIsometric(
+        target,
+        -z * TILE_HEIGHT
+      );
 
-    const { x: isoX, y: isoY } = GeometricUtils.cartesianToIsometric(target, -z);
+      const tile = this.game.add.sprite(
+        this.game.world.centerX +
+          isoX +
+          this.game.state.offsetX +
+          TILE_WIDTH / 2 +
+          (TILE_WIDTH * this.map.length) / 2,
+        this.game.world.centerY + isoY + TILE_HEIGHT * 2,
+        tileTypeToAsset[tileType]
+      );
 
-    const tile = this.game.add.sprite(
-      this.game.world.centerX +
-        isoX +
-        this.game.state.offsetX +
-        TILE_WIDTH / 2 +
-        (TILE_WIDTH * this.map.length) / 2,
-      this.game.world.centerY + isoY + TILE_HEIGHT * 2,
-      tileTypeToAsset[tileType]
-    );
+      tile.anchor.setTo(1);
+      tile.inputEnabled = true;
+      tile.events.onInputDown.add(this.handleTileClick(x, y, z));
 
-    tile.anchor.setTo(1);
-    tile.inputEnabled = true;
-    tile.events.onInputDown.add(({ position }) =>
-      console.log(
-        GeometricUtils.getTileCoordinates(
-          GeometricUtils.isometricToCartesian(position),
-          TILE_HEIGHT
-        )
-      )
-    );
+      return tile;
+    }
 
-    return tile;
+    return null;
   }
 }
